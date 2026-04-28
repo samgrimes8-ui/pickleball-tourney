@@ -1,0 +1,173 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: 'Bungee', 'Rubik Mono One', sans-serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Bungee&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+html, body {
+  background: #F4EBD0;
+  color: #1A1A1A;
+  font-family: var(--font-body);
+}
+
+/* Retro halftone background for hero */
+.halftone {
+  background-image: radial-gradient(#1A1A1A 1.2px, transparent 1.2px);
+  background-size: 14px 14px;
+  background-position: 0 0;
+}
+
+.halftone-light {
+  background-image: radial-gradient(rgba(26,26,26,0.18) 1px, transparent 1px);
+  background-size: 10px 10px;
+}
+
+/* Diagonal stripe pattern */
+.stripes {
+  background: repeating-linear-gradient(
+    -45deg,
+    #C84B31 0,
+    #C84B31 12px,
+    #E8A53D 12px,
+    #E8A53D 24px
+  );
+}
+
+/* Hard shadow utility - varsity/jersey feel */
+.hard-shadow {
+  box-shadow: 6px 6px 0 #1A1A1A;
+}
+.hard-shadow-sm {
+  box-shadow: 3px 3px 0 #1A1A1A;
+}
+.hard-shadow-rust {
+  box-shadow: 6px 6px 0 #C84B31;
+}
+
+/* Group color blocks */
+.group-red { background: #C84B31; color: #F4EBD0; }
+.group-blue { background: #3B6BA5; color: #F4EBD0; }
+.group-green { background: #2C5530; color: #F4EBD0; }
+
+/* Subtle paper texture */
+.paper {
+  background-color: #F4EBD0;
+  background-image:
+    radial-gradient(rgba(0,0,0,0.04) 1px, transparent 1px),
+    radial-gradient(rgba(0,0,0,0.03) 1px, transparent 1px);
+  background-size: 3px 3px, 7px 7px;
+  background-position: 0 0, 1px 1px;
+}
+
+/* Button base */
+.btn-retro {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: #1A1A1A;
+  color: #F4EBD0;
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  letter-spacing: 0.05em;
+  border: 2px solid #1A1A1A;
+  box-shadow: 4px 4px 0 #C84B31;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.btn-retro:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0 #C84B31;
+}
+.btn-retro:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 #C84B31;
+}
+.btn-retro.secondary {
+  background: #F4EBD0;
+  color: #1A1A1A;
+  box-shadow: 4px 4px 0 #1A1A1A;
+}
+.btn-retro.secondary:hover {
+  box-shadow: 5px 5px 0 #1A1A1A;
+}
+
+/* Number ticker for scores */
+.score-input {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  width: 3.5rem;
+  text-align: center;
+  background: #F4EBD0;
+  border: 2px solid #1A1A1A;
+  padding: 0.25rem;
+}
+.score-input:focus {
+  outline: none;
+  background: #E8A53D;
+}
+
+/* Tab buttons */
+.tab-btn {
+  font-family: var(--font-display);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.75rem 1.25rem;
+  border: 2px solid #1A1A1A;
+  background: #F4EBD0;
+  color: #1A1A1A;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+.tab-btn.active {
+  background: #1A1A1A;
+  color: #F4EBD0;
+}
+
+/* Marquee */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee-track {
+  animation: marquee 30s linear infinite;
+}
+
+/* Sticker badge */
+.sticker {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  background: #E8A53D;
+  color: #1A1A1A;
+  border: 2px solid #1A1A1A;
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transform: rotate(-2deg);
+}
+
+/* Bracket connectors */
+.bracket-line {
+  border-left: 3px solid #1A1A1A;
+}
+
+/* Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(26,26,26,0.7);
+  backdrop-filter: blur(2px);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
