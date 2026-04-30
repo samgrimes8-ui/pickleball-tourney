@@ -1,11 +1,27 @@
-// Compute group standings from played matches
-export function computeGroupStandings(group: any) {
-  const teams: Record<string, any> = {};
-  group.teams.forEach((t: string) => {
-    teams[t] = { team: t, wins: 0, losses: 0, pf: 0, pa: 0, diff: 0, played: 0 };
+export const SKILL_SCORE: Record<string, number> = { Advanced: 3, Intermediate: 2, Beginner: 1 };
+
+export type Standing = {
+  team: string;
+  played: number;
+  wins: number;
+  losses: number;
+  pf: number;
+  pa: number;
+  diff: number;
+};
+
+export function teamSkillScore(team: any) {
+  return team.members.reduce((sum: number, m: any) => sum + (SKILL_SCORE[m.skill_level] || 0), 0);
+}
+
+// Compute round-robin standings across all teams from a flat match list
+export function computeRoundRobinStandings(teamNames: string[], matches: any[]): Standing[] {
+  const teams: Record<string, Standing> = {};
+  teamNames.forEach((t) => {
+    teams[t] = { team: t, played: 0, wins: 0, losses: 0, pf: 0, pa: 0, diff: 0 };
   });
 
-  group.matches.forEach((m: any) => {
+  matches.forEach((m) => {
     if (m.home_score == null || m.away_score == null) return;
     if (!teams[m.home] || !teams[m.away]) return;
     teams[m.home].played++;
@@ -24,44 +40,32 @@ export function computeGroupStandings(group: any) {
   });
 
   return Object.values(teams)
-    .map((t: any) => ({ ...t, diff: t.pf - t.pa }))
-    .sort((a: any, b: any) => b.wins - a.wins || b.diff - a.diff || b.pf - a.pf);
+    .map((t) => ({ ...t, diff: t.pf - t.pa }))
+    .sort((a, b) => b.wins - a.wins || b.diff - a.diff || b.pf - a.pf || a.team.localeCompare(b.team));
 }
 
-export function computeWildcard(groups: any[]) {
-  const seconds: any[] = [];
-  groups.forEach((g) => {
-    const standings = computeGroupStandings(g);
-    if (standings[1] && standings[1].played > 0) {
-      seconds.push({ ...standings[1], group: g.group_id });
-    }
-  });
-  seconds.sort((a, b) => b.wins - a.wins || b.diff - a.diff || b.pf - a.pf);
-  return seconds[0] || null;
-}
-
-export function getGroupWinner(group: any) {
-  const standings = computeGroupStandings(group);
-  if (standings[0] && standings[0].played > 0) return standings[0].team;
-  return null;
-}
-
-export function getMatchWinner(match: any) {
+export function getMatchWinner(match: any): string | null {
   if (match.home_score == null || match.away_score == null) return null;
   if (match.home_score > match.away_score) return match.home;
   if (match.away_score > match.home_score) return match.away;
   return null;
 }
 
-export function getMatchLoser(match: any) {
+export function getMatchLoser(match: any): string | null {
   if (match.home_score == null || match.away_score == null) return null;
   if (match.home_score > match.away_score) return match.away;
   if (match.away_score > match.home_score) return match.home;
   return null;
 }
 
-export const SKILL_SCORE: Record<string, number> = { Advanced: 3, Intermediate: 2, Beginner: 1 };
-
-export function teamSkillScore(team: any) {
-  return team.members.reduce((sum: number, m: any) => sum + (SKILL_SCORE[m.skill_level] || 0), 0);
+// Resolve seed placeholders like "#1 Seed" against round-robin standings.
+// Only resolves when the round robin has had enough decided matches for that seed
+// to be meaningful (i.e. the team at that seed has played at least one game).
+export function resolveSeed(label: string, standings: Standing[]): { name: string; resolved: boolean } {
+  const m = label.match(/^#(\d+)\s*Seed$/i);
+  if (!m) return { name: label, resolved: false };
+  const idx = parseInt(m[1], 10) - 1;
+  const s = standings[idx];
+  if (!s || s.played === 0) return { name: label, resolved: false };
+  return { name: s.team, resolved: true };
 }

@@ -2,21 +2,21 @@
 
 import { useState } from "react";
 import Hero from "@/components/Hero";
-import GroupStage from "@/components/GroupStage";
+import RoundRobin from "@/components/RoundRobin";
 import Bracket from "@/components/Bracket";
 import Teams from "@/components/Teams";
 import Admin from "@/components/Admin";
 import SyncIndicator from "@/components/SyncIndicator";
 
 const TABS = [
-  { id: "groups", label: "Group Stage" },
-  { id: "bracket", label: "Bracket" },
+  { id: "round-robin", label: "Round Robin" },
+  { id: "finals", label: "Finals" },
   { id: "teams", label: "Rosters" },
   { id: "admin", label: "⚙ Admin" },
 ];
 
 export default function Home() {
-  const [tab, setTab] = useState("groups");
+  const [tab, setTab] = useState("round-robin");
 
   return (
     <main>
@@ -41,8 +41,8 @@ export default function Home() {
       </nav>
 
       <div className="max-w-6xl mx-auto px-6 py-10">
-        {tab === "groups" && <GroupStage />}
-        {tab === "bracket" && <Bracket />}
+        {tab === "round-robin" && <RoundRobin />}
+        {tab === "finals" && <Bracket />}
         {tab === "teams" && <Teams />}
         {tab === "admin" && <Admin />}
       </div>
