@@ -3,7 +3,6 @@
 import { useTournament } from "@/lib/TournamentContext";
 import { teamSkillScore } from "@/lib/standings";
 
-const COLOR_MAP: Record<string, string> = { A: "group-red", B: "group-blue", C: "group-green" };
 const SKILL_BADGE: Record<string, string> = {
   Advanced: "bg-rust text-cream",
   Intermediate: "bg-mustard text-ink",
@@ -12,7 +11,7 @@ const SKILL_BADGE: Record<string, string> = {
 
 export default function Teams() {
   const { data } = useTournament();
-  const teams = [...data.teams].sort((a: any, b: any) => (a.group || "").localeCompare(b.group || ""));
+  const teams = [...data.teams].sort((a: any, b: any) => a.team_id - b.team_id);
 
   return (
     <section>
@@ -20,12 +19,11 @@ export default function Teams() {
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
         {teams.map((team: any) => {
           const score = teamSkillScore(team);
-          const groupClass = COLOR_MAP[team.group] || "bg-ink text-cream";
           return (
             <div key={team.team_id} className="bg-cream border-2 border-ink hard-shadow-sm">
-              <div className={`${groupClass} px-3 py-2 flex items-center justify-between border-b-2 border-ink`}>
+              <div className="bg-ink text-cream px-3 py-2 flex items-center justify-between border-b-2 border-ink">
                 <span className="font-display text-lg tracking-wide truncate">{team.team_name}</span>
-                <span className="font-mono text-xs">GRP {team.group}</span>
+                <span className="font-mono text-xs">#{team.team_id}</span>
               </div>
               <div className="p-3 space-y-2">
                 {team.members.map((m: any, i: number) => (
@@ -43,6 +41,11 @@ export default function Teams() {
                     </span>
                   </div>
                 ))}
+                {team.notes && (
+                  <p className="pt-2 mt-2 border-t border-ink/20 text-xs italic text-ink/70">
+                    {team.notes}
+                  </p>
+                )}
                 <div className="pt-2 mt-2 border-t border-ink/20 flex justify-between font-mono text-[0.65rem] uppercase tracking-wider text-ink/60">
                   <span>Skill Total</span>
                   <span>{score} pts</span>

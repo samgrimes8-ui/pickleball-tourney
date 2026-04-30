@@ -6,77 +6,47 @@ import { useTournament } from "@/lib/TournamentContext";
 export default function Admin() {
   const { data, setData, resetToInitial, exportJson, importJson } = useTournament();
   const [editingTeamId, setEditingTeamId] = useState<number | null>(null);
-  const [showAddTeam, setShowAddTeam] = useState(false);
 
-  const removeTeam = (teamId: number) => {
-    const team = data.teams.find((t: any) => t.team_id === teamId);
-    if (!team) return;
-    if (!confirm(`Remove team "${team.team_name}"? They'll also be removed from their group and matches.`)) return;
-
+  const renameTeam = (oldName: string, newName: string) => {
+    if (oldName === newName || !newName.trim()) return;
     const next = { ...data };
-    next.teams = next.teams.filter((t: any) => t.team_id !== teamId);
     next.tournament_format = { ...next.tournament_format };
-    next.tournament_format.groups = next.tournament_format.groups.map((g: any) => ({
-      ...g,
-      teams: g.teams.filter((tn: string) => tn !== team.team_name),
-      matches: g.matches.filter((m: any) => m.home !== team.team_name && m.away !== team.team_name),
-    }));
-    setData(next);
-  };
 
-  const addTeam = (teamName: string, group: string) => {
-    if (!teamName.trim()) return;
-    const newId = Math.max(0, ...data.teams.map((t: any) => t.team_id)) + 1;
-    const newTeam = {
-      team_id: newId,
-      team_name: teamName.trim(),
-      group,
-      members: [],
-    };
-    const next = { ...data };
-    next.teams = [...next.teams, newTeam];
-    next.tournament_format = { ...next.tournament_format };
-    next.tournament_format.groups = next.tournament_format.groups.map((g: any) =>
-      g.group_id === group ? { ...g, teams: [...g.teams, teamName.trim()] } : g
-    );
-    setData(next);
-    setShowAddTeam(false);
+    if (next.tournament_format.round_robin) {
+      next.tournament_format.round_robin = {
+        ...next.tournament_format.round_robin,
+        matches: next.tournament_format.round_robin.matches.map((m: any) => ({
+          ...m,
+          home: m.home === oldName ? newName : m.home,
+          away: m.away === oldName ? newName : m.away,
+          bye: m.bye === oldName ? newName : m.bye,
+        })),
+      };
+    }
+
+    if (next.rest_schedule) {
+      const rs: Record<string, string> = {};
+      Object.entries(next.rest_schedule).forEach(([k, v]) => {
+        rs[k] = v === oldName ? newName : (v as string);
+      });
+      next.rest_schedule = rs;
+    }
+
+    return next;
   };
 
   const updateTeam = (teamId: number, updates: Partial<any>) => {
-    const next = { ...data };
+    let next = { ...data };
     const oldTeam = next.teams.find((t: any) => t.team_id === teamId);
     if (!oldTeam) return;
 
-    // If team name changed, update references in group + matches
     if (updates.team_name && updates.team_name !== oldTeam.team_name) {
-      next.tournament_format = { ...next.tournament_format };
-      next.tournament_format.groups = next.tournament_format.groups.map((g: any) => ({
-        ...g,
-        teams: g.teams.map((tn: string) => tn === oldTeam.team_name ? updates.team_name : tn),
-        matches: g.matches.map((m: any) => ({
-          ...m,
-          home: m.home === oldTeam.team_name ? updates.team_name : m.home,
-          away: m.away === oldTeam.team_name ? updates.team_name : m.away,
-        })),
-      }));
+      next = renameTeam(oldTeam.team_name, updates.team_name) || next;
     }
 
-    // If group changed, move team between groups
-    if (updates.group && updates.group !== oldTeam.group) {
-      next.tournament_format = { ...next.tournament_format };
-      next.tournament_format.groups = next.tournament_format.groups.map((g: any) => {
-        if (g.group_id === oldTeam.group) {
-          return { ...g, teams: g.teams.filter((tn: string) => tn !== oldTeam.team_name) };
-        }
-        if (g.group_id === updates.group) {
-          return { ...g, teams: [...g.teams, updates.team_name || oldTeam.team_name] };
-        }
-        return g;
-      });
-    }
-
-    next.teams = next.teams.map((t: any) => t.team_id === teamId ? { ...t, ...updates } : t);
+    next.teams = next.teams.map((t: any) =>
+      t.team_id === teamId ? { ...t, ...updates } : t
+    );
     setData(next);
   };
 
@@ -94,7 +64,7 @@ export default function Admin() {
     const next = { ...data };
     next.teams = next.teams.map((t: any) =>
       t.team_id === teamId
-        ? { ...t, members: t.members.map((m: any, i: number) => i === idx ? { ...m, ...updates } : m) }
+        ? { ...t, members: t.members.map((m: any, i: number) => (i === idx ? { ...m, ...updates } : m)) }
         : t
     );
     setData(next);
@@ -107,41 +77,6 @@ export default function Admin() {
         ? { ...t, members: t.members.filter((_: any, i: number) => i !== idx) }
         : t
     );
-    setData(next);
-  };
-
-  const regenerateMatches = (groupId: string) => {
-    if (!confirm(`Regenerate round-robin matches for Group ${groupId}? This will erase existing scores for this group.`)) return;
-    const next = { ...data };
-    next.tournament_format = { ...next.tournament_format };
-    next.tournament_format.groups = next.tournament_format.groups.map((g: any) => {
-      if (g.group_id !== groupId) return g;
-      const teams = g.teams;
-      const matches: any[] = [];
-      let matchNum = (g.matches[0]?.match || 1);
-      // Get the highest match num in other groups so we don't collide
-      const allOtherMatches = next.tournament_format.groups
-        .filter((og: any) => og.group_id !== groupId)
-        .flatMap((og: any) => og.matches.map((m: any) => m.match));
-      let startNum = matchNum;
-      while (allOtherMatches.includes(startNum)) startNum++;
-
-      let n = startNum;
-      for (let i = 0; i < teams.length; i++) {
-        for (let j = i + 1; j < teams.length; j++) {
-          matches.push({
-            match: n++,
-            home: teams[i],
-            away: teams[j],
-            court: g.matches[0]?.court || 1,
-            slot: matches.length + 1,
-            home_score: null,
-            away_score: null,
-          });
-        }
-      }
-      return { ...g, matches };
-    });
     setData(next);
   };
 
@@ -170,7 +105,7 @@ export default function Admin() {
           </button>
         </div>
         <p className="mt-3 text-xs font-mono text-cream/60">
-          All edits save automatically to your browser. Export to share with another device, import to load.
+          Edits sync to all devices automatically. Export to back up, import to restore.
         </p>
       </div>
 
@@ -204,7 +139,7 @@ export default function Admin() {
               onChange={(e) => setData({ ...data, courts: parseInt(e.target.value) || 1 })}
             />
           </label>
-          <label className="flex flex-col gap-1">
+          <label className="flex flex-col gap-1 sm:col-span-2">
             <span className="font-mono text-xs uppercase tracking-wider text-ink/60">Notes</span>
             <input
               className="border-2 border-ink px-3 py-2 bg-cream"
@@ -217,12 +152,10 @@ export default function Admin() {
 
       {/* Teams editor */}
       <div className="bg-cream border-2 border-ink p-5 hard-shadow-sm">
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <h3 className="font-display text-lg">Teams ({data.teams.length})</h3>
-          <button onClick={() => setShowAddTeam(true)} className="btn-retro">+ Add Team</button>
-        </div>
-
-        {showAddTeam && <AddTeamForm onAdd={addTeam} onCancel={() => setShowAddTeam(false)} groups={data.tournament_format.groups} />}
+        <h3 className="font-display text-lg mb-4">Teams ({data.teams.length})</h3>
+        <p className="text-xs text-ink/60 mb-3 font-mono uppercase tracking-wider">
+          Renaming a team updates the round-robin schedule and rest schedule automatically.
+        </p>
 
         <div className="space-y-3 mt-3">
           {data.teams.map((team: any) => (
@@ -232,27 +165,10 @@ export default function Admin() {
               isExpanded={editingTeamId === team.team_id}
               onToggle={() => setEditingTeamId(editingTeamId === team.team_id ? null : team.team_id)}
               onUpdate={(updates) => updateTeam(team.team_id, updates)}
-              onRemove={() => removeTeam(team.team_id)}
               onAddMember={() => addMember(team.team_id)}
               onUpdateMember={(idx, u) => updateMember(team.team_id, idx, u)}
               onRemoveMember={(idx) => removeMember(team.team_id, idx)}
-              groups={data.tournament_format.groups}
             />
-          ))}
-        </div>
-      </div>
-
-      {/* Group match regen */}
-      <div className="bg-cream border-2 border-ink p-5 hard-shadow-sm">
-        <h3 className="font-display text-lg mb-3">Regenerate Group Matches</h3>
-        <p className="text-sm text-ink/70 mb-3">
-          After adding/removing teams in a group, regenerate the round-robin schedule.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {data.tournament_format.groups.map((g: any) => (
-            <button key={g.group_id} onClick={() => regenerateMatches(g.group_id)} className="btn-retro secondary">
-              ⟳ Group {g.group_id}
-            </button>
           ))}
         </div>
       </div>
@@ -260,51 +176,24 @@ export default function Admin() {
   );
 }
 
-function AddTeamForm({ onAdd, onCancel, groups }: any) {
-  const [name, setName] = useState("");
-  const [group, setGroup] = useState(groups[0]?.group_id || "A");
-  return (
-    <div className="border-2 border-dashed border-ink p-4 bg-mustard/20">
-      <div className="grid sm:grid-cols-3 gap-3">
-        <input
-          autoFocus
-          className="border-2 border-ink px-3 py-2 bg-cream"
-          placeholder="Team name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <select
-          className="border-2 border-ink px-3 py-2 bg-cream"
-          value={group}
-          onChange={(e) => setGroup(e.target.value)}
-        >
-          {groups.map((g: any) => (
-            <option key={g.group_id} value={g.group_id}>Group {g.group_id}</option>
-          ))}
-        </select>
-        <div className="flex gap-2">
-          <button onClick={() => onAdd(name, group)} className="btn-retro flex-1">Save</button>
-          <button onClick={onCancel} className="btn-retro secondary">×</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TeamEditor({ team, isExpanded, onToggle, onUpdate, onRemove, onAddMember, onUpdateMember, onRemoveMember, groups }: any) {
+function TeamEditor({
+  team,
+  isExpanded,
+  onToggle,
+  onUpdate,
+  onAddMember,
+  onUpdateMember,
+  onRemoveMember,
+}: any) {
   return (
     <div className="border-2 border-ink/30">
       <div className="flex items-center justify-between p-3 bg-cream">
         <button onClick={onToggle} className="flex items-center gap-3 text-left flex-1">
           <span className="font-display text-sm">{isExpanded ? "▼" : "▶"}</span>
           <span className="font-display text-base">{team.team_name}</span>
-          <span className="font-mono text-xs text-ink/60">Grp {team.group} · {team.members.length} player{team.members.length !== 1 ? "s" : ""}</span>
-        </button>
-        <button
-          onClick={onRemove}
-          className="font-mono text-xs uppercase tracking-wider text-rust hover:text-ink px-2 py-1"
-        >
-          Remove
+          <span className="font-mono text-xs text-ink/60">
+            #{team.team_id} · {team.members.length} player{team.members.length !== 1 ? "s" : ""}
+          </span>
         </button>
       </div>
 
@@ -315,21 +204,21 @@ function TeamEditor({ team, isExpanded, onToggle, onUpdate, onRemove, onAddMembe
               <span className="font-mono text-[0.65rem] uppercase tracking-wider text-ink/60">Team Name</span>
               <input
                 className="border border-ink px-2 py-1.5 bg-cream text-sm"
-                value={team.team_name}
-                onChange={(e) => onUpdate({ team_name: e.target.value })}
+                defaultValue={team.team_name}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v && v !== team.team_name) onUpdate({ team_name: v });
+                }}
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="font-mono text-[0.65rem] uppercase tracking-wider text-ink/60">Group</span>
-              <select
+              <span className="font-mono text-[0.65rem] uppercase tracking-wider text-ink/60">Notes</span>
+              <input
                 className="border border-ink px-2 py-1.5 bg-cream text-sm"
-                value={team.group}
-                onChange={(e) => onUpdate({ group: e.target.value })}
-              >
-                {groups.map((g: any) => (
-                  <option key={g.group_id} value={g.group_id}>Group {g.group_id}</option>
-                ))}
-              </select>
+                value={team.notes || ""}
+                onChange={(e) => onUpdate({ notes: e.target.value })}
+                placeholder="Optional"
+              />
             </label>
           </div>
 
